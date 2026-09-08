@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Library of Ages</title>
+<style>
+  :root{
+    --paper:#f6f1e3; --paper-dim:#efe7d3; --ink:#2b2620; --ink-soft:#5a5040;
+    --gold:#b08d3e; --gold-soft:#cbb06a; --rule:#c9bda0; --shadow:rgba(20,15,5,.45);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;}
+  body{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;color:var(--ink);}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* ---------- overlays shared ---------- */
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:40;}
+  .hidden{display:none !important;}
+
+  /* ---------- title screen ---------- */
+  #title{background:radial-gradient(ellipse at 50% 35%, #1d2333 0%, #0b0d16 70%);flex-direction:column;text-align:center;}
+  #title .plate{
+    background:var(--paper);border:1px solid var(--gold);outline:4px double var(--gold);outline-offset:6px;
+    padding:46px 58px;max-width:640px;box-shadow:0 30px 80px rgba(0,0,0,.6);
+  }
+  #title h1{font-size:44px;letter-spacing:.14em;font-weight:600;margin-bottom:6px;}
+  #title .orn{color:var(--gold);letter-spacing:.4em;font-size:14px;margin:10px 0;}
+  #title .sub{font-style:italic;color:var(--ink-soft);font-size:17px;margin-bottom:4px;}
+  #title .sub2{font-size:13px;color:var(--ink-soft);letter-spacing:.08em;margin-bottom:22px;}
+  #title .btns{display:flex;gap:14px;justify-content:center;margin:10px 0 20px;}
+  button.bk{
+    font-family:inherit;font-size:15px;letter-spacing:.12em;padding:11px 26px;cursor:pointer;
+    background:var(--ink);color:var(--paper);border:1px solid var(--ink);transition:all .15s;
+  }
+  button.bk:hover{background:var(--gold);border-color:var(--gold);color:#fff;}
+  button.bk.ghost{background:transparent;color:var(--ink);}
+  button.bk.ghost:hover{background:var(--ink);color:var(--paper);}
+  #title .controls{font-size:13.5px;color:var(--ink-soft);line-height:1.9;border-top:1px solid var(--rule);padding-top:16px;}
+  #title .controls b{color:var(--ink);font-weight:600;}
+  #contnote{font-size:12px;color:var(--ink-soft);margin-top:10px;font-style:italic;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;}
+  #crosshair{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;
+    background:rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,.7);}
+  #prompt{position:absolute;left:50%;top:56%;transform:translateX(-50%);
+    background:rgba(15,12,8,.72);color:#f2ead6;padding:8px 18px;font-size:15px;letter-spacing:.04em;
+    border:1px solid rgba(203,176,106,.5);white-space:nowrap;}
+  #prompt b{color:var(--gold-soft);}
+  #worldTag{position:absolute;top:18px;left:22px;color:rgba(246,241,227,.92);text-shadow:0 1px 6px rgba(0,0,0,.8);}
+  #worldTag .wt1{font-size:11px;letter-spacing:.28em;color:var(--gold-soft);}
+  #worldTag .wt2{font-size:19px;letter-spacing:.06em;margin-top:2px;}
+  #progressTag{position:absolute;top:18px;right:22px;text-align:right;color:rgba(246,241,227,.92);
+    font-size:13px;letter-spacing:.06em;text-shadow:0 1px 6px rgba(0,0,0,.8);line-height:1.7;}
+  #hint{position:absolute;bottom:16px;left:22px;font-size:12.5px;letter-spacing:.05em;
+    color:rgba(246,241,227,.66);text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.8;}
+  #hint b{color:rgba(246,241,227,.95);}
+  #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,.38) 100%);}
+
+  /* ---------- toast ---------- */
+  #toast{position:fixed;top:74px;left:50%;transform:translateX(-50%);z-index:30;pointer-events:none;
+    background:var(--paper);color:var(--ink);border:1px solid var(--gold);padding:12px 26px;text-align:center;
+    box-shadow:0 8px 30px var(--shadow);opacity:0;transition:opacity .4s;max-width:520px;}
+  #toast .t1{font-size:11px;letter-spacing:.3em;color:var(--gold);margin-bottom:3px;}
+  #toast .t2{font-size:16.5px;}
+
+  /* ---------- world title card ---------- */
+  #card{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
+    z-index:35;pointer-events:none;opacity:0;transition:opacity 1s;text-align:center;}
+  #card .c0{font-size:13px;letter-spacing:.5em;color:var(--gold-soft);text-shadow:0 2px 10px rgba(0,0,0,.9);margin-bottom:12px;}
+  #card .c1{font-size:52px;letter-spacing:.1em;color:#f6f1e3;text-shadow:0 3px 20px rgba(0,0,0,.95);}
+  #card .c2{font-size:17px;font-style:italic;color:rgba(246,241,227,.85);text-shadow:0 2px 10px rgba(0,0,0,.9);margin-top:12px;}
+
+  /* ---------- dialogue ---------- */
+  #dlg{position:fixed;left:50%;bottom:38px;transform:translateX(-50%);width:min(780px,92vw);z-index:45;
+    background:var(--paper);border:1px solid var(--gold);box-shadow:0 18px 60px var(--shadow);}
+  #dlg .head{display:flex;justify-content:space-between;align-items:baseline;
+    padding:13px 24px 10px;border-bottom:1px solid var(--rule);}
+  #dlg .name{font-size:19px;letter-spacing:.05em;font-weight:600;}
+  #dlg .dates{font-size:13px;color:var(--ink-soft);font-style:italic;}
+  #dlg .body{padding:16px 24px 14px;font-size:18px;line-height:1.65;min-height:76px;}
+  #dlg .foot{display:flex;justify-content:space-between;align-items:center;padding:0 24px 13px;}
+  #dlg .adv{font-size:12.5px;color:var(--ink-soft);letter-spacing:.1em;}
+  #dlg .opts{display:flex;flex-direction:column;gap:8px;padding:0 24px 18px;}
+  #dlg .opts button{font-family:inherit;text-align:left;font-size:16px;padding:9px 16px;cursor:pointer;
+    background:var(--paper-dim);border:1px solid var(--rule);color:var(--ink);transition:all .12s;}
+  #dlg .opts button:hover{border-color:var(--gold);background:#fff;}
+  #dlg .opts button b{color:var(--gold);margin-right:8px;}
+  #dlg.russell .name{color:#5a4a7a;}
+
+  /* ---------- journal ---------- */
+  #journal{background:rgba(8,7,5,.55);z-index:50;}
+  #journal .book{width:min(880px,94vw);height:min(640px,88vh);background:var(--paper);
+    border:1px solid var(--gold);outline:3px double var(--gold);outline-offset:5px;
+    box-shadow:0 30px 90px rgba(0,0,0,.7);display:flex;flex-direction:column;}
+  #journal .jhead{padding:20px 34px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;}
+  #journal .jhead h2{font-size:24px;letter-spacing:.16em;font-weight:600;}
+  #journal .jhead .jp{font-size:14px;color:var(--ink-soft);font-style:italic;}
+  #journal .jbody{flex:1;overflow-y:auto;padding:10px 34px 30px;}
+  #journal .jbody::-webkit-scrollbar{width:10px;}
+  #journal .jbody::-webkit-scrollbar-thumb{background:var(--rule);}
+  .jage{margin-top:26px;}
+  .jage .jt{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--rule);padding-bottom:6px;}
+  .jage .jt .a1{font-size:12px;letter-spacing:.24em;color:var(--gold);}
+  .jage .jt .a2{font-size:20px;letter-spacing:.04em;margin-top:2px;}
+  .jage .jt .a3{font-size:13px;color:var(--ink-soft);}
+  .jage.done .jt .a2::after{content:" ✦";color:var(--gold);}
+  .jrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+  .jcardN,.jcardI{border:1px solid var(--rule);padding:10px 14px;background:#fdfaf2;width:calc(50% - 5px);}
+  .jcardN .n1{font-size:15.5px;font-weight:600;}
+  .jcardN .n1 span{font-weight:400;font-style:italic;color:var(--ink-soft);font-size:12.5px;margin-left:6px;}
+  .jcardN .n2{font-size:13.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;}
+  .jcardN .n3{font-size:13px;font-style:italic;margin-top:6px;color:#6a5a2e;line-height:1.5;}
+  .jcardN .n3::before{content:"Seed of thought — ";letter-spacing:.06em;font-style:normal;font-size:10.5px;color:var(--gold);}
+  .jcardI{background:#f8f3e2;border-color:var(--gold-soft);}
+  .jcardI .n1{font-size:15px;font-weight:600;color:#7a5c2e;}
+  .jcardI .n2{font-size:13.5px;color:var(--ink-soft);margin-top:3px;line-height:1.55;}
+  .jlocked{filter:grayscale(1);opacity:.42;}
+  .jlocked .n2,.jlocked .n3{display:none;}
+  .jfoot{padding:12px 34px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--ink-soft);letter-spacing:.06em;display:flex;justify-content:space-between;}
+
+  /* ---------- pause ---------- */
+  #pause{background:rgba(8,7,5,.6);z-index:55;flex-direction:column;}
+  #pause .plate{background:var(--paper);border:1px solid var(--gold);padding:34px 50px;text-align:center;box-shadow:0 20px 70px var(--shadow);}
+  #pause h2{font-size:22px;letter-spacing:.2em;margin-bottom:18px;}
+  #pause .btns{display:flex;flex-direction:column;gap:10px;}
+
+  /* ---------- fade / link flash ---------- */
+  #fade{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:60;transition:opacity .5s;}
+  #fade.black{background:#000;}
+
+  #ftr{position:fixed;bottom:14px;right:20px;z-index:21;font-size:11.5px;letter-spacing:.08em;
+    color:rgba(246,241,227,.5);text-shadow:0 1px 4px rgba(0,0,0,.8);pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="vignette"></div>
+  <div id="crosshair"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="worldTag"><div class="wt1"></div><div class="wt2"></div></div>
+  <div id="progressTag"></div>
+  <div id="hint"><b>WASD</b> walk &nbsp;·&nbsp; <b>drag / click</b> look &nbsp;·&nbsp; <b>E</b> interact &nbsp;·&nbsp; <b>J</b> journal &nbsp;·&nbsp; <b>M</b> sound &nbsp;·&nbsp; <b>Esc</b> menu</div>
+</div>
+
+<div id="toast"><div class="t1"></div><div class="t2"></div></div>
+
+<div id="card"><div class="c0"></div><div class="c1"></div><div class="c2"></div></div>
+
+<div id="dlg" class="hidden">
+  <div class="head"><div class="name"></div><div class="dates"></div></div>
+  <div class="body"></div>
+  <div class="opts hidden"></div>
+  <div class="foot"><div class="adv">SPACE / CLICK — continue</div><div class="adv" style="opacity:.6">E — end</div></div>
+</div>
+
+<div id="journal" class="overlay hidden">
+  <div class="book">
+    <div class="jhead"><h2>THE TRAVELER'S JOURNAL</h2><div class="jp"></div></div>
+    <div class="jbody"></div>
+    <div class="jfoot"><span>J — close</span><span id="jtotal"></span></div>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="plate">
+    <h2>PAUSED</h2>
+    <div class="btns">
+      <button class="bk" id="btnResume">RESUME</button>
+      <button class="bk ghost" id="btnJournal2">JOURNAL</button>
+      <button class="bk ghost" id="btnReset">START OVER</button>
+    </div>
+  </div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="plate">
+    <div class="orn">✦ ✦ ✦</div>
+    <h1>THE LIBRARY OF AGES</h1>
+    <div class="orn">———</div>
+    <div class="sub">A journey through Western philosophy</div>
+    <div class="sub2">in the company of BERTRAND RUSSELL</div>
+    <div class="btns">
+      <button class="bk" id="btnNew">BEGIN</button>
+      <button class="bk ghost hidden" id="btnContinue">CONTINUE</button>
+    </div>
+    <div class="controls">
+      <b>WASD</b> to walk · <b>drag the mouse</b> (or click for mouse-look) to look around<br>
+      <b>E</b> to speak with thinkers &amp; gather treasures · <b>J</b> for your journal · <b>M</b> for sound<br>
+      Seven ages await. Touch a linking book to travel. Headphones recommended.
+    </div>
+    <div id="contnote" class="hidden">A previous journey was found in this browser.</div>
+  </div>
+</div>
+
+<div id="fade"></div>
+<div id="ftr">after Bertrand Russell's “A History of Western Philosophy”</div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/builders.js"></script>
+<script src="js/data-hub.js"></script>
+<script src="js/data-ancient.js"></script>
+<script src="js/data-medieval.js"></script>
+<script src="js/data-modern.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
